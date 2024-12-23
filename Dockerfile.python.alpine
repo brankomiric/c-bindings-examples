@@ -1,0 +1,27 @@
+# Use a lightweight Python image
+FROM python:3.11-alpine
+
+# Install necessary dependencies
+RUN apk add --no-cache \
+    curl-dev \
+    gcc \
+    musl-dev \
+    libc6-compat
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the C code and the Python script into the container
+COPY status_fetcher.c .
+COPY main.py .
+
+# Compile the C code into a shared library
+RUN gcc -shared -o status_fetcher.so -fPIC status_fetcher.c -lcurl -lpthread
+
+# Install any Python dependencies (if needed)
+# Uncomment and modify the following lines if you have a requirements.txt
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+
+# Run the Python script
+CMD ["python3", "main.py"]

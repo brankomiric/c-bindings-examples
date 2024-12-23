@@ -1,0 +1,42 @@
+# Use a base image with Go
+FROM golang:1.20-alpine AS build
+
+# Install necessary build tools and dependencies
+RUN apk add --no-cache \
+    curl-dev \
+    gcc \
+    musl-dev
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the C and Go code into the container
+COPY status_fetcher.c .
+COPY main.go .
+
+# Compile the C code into a shared library
+RUN gcc -shared -o libstatus_fetcher.so -fPIC status_fetcher.c -lcurl -lpthread
+
+# Build the Go application
+RUN CGO_ENABLED=1 go build -o status_fetcher main.go
+
+# Use a smaller base image for the final stage
+FROM alpine:latest
+
+# Install runtime dependencies for the application
+RUN apk add --no-cache \
+    curl \
+    libc6-compat
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the compiled shared library and binary from the build stage
+COPY --from=build /app/libstatus_fetcher.so .
+COPY --from=build /app/status_fetcher .
+
+# Set the environment variable for the shared library
+ENV LD_LIBRARY_PATH=/app
+
+# Run the Go application
+CMD ["./status_fetcher"]
